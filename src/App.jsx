@@ -33,7 +33,7 @@ function RiderLayout() {
 
 function DriverLayout() {
   return (
-    <>
+    <div className="driver-theme">
       <nav className="navbar">
         <NavLink to="/" className="brand">🚖 TaxiGo Driver</NavLink>
         <span className="spacer" />
@@ -45,7 +45,7 @@ function DriverLayout() {
         </NavLink>
       </nav>
       <Outlet />
-    </>
+    </div>
   );
 }
 

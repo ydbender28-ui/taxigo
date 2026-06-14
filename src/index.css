@@ -461,3 +461,58 @@ label {
     font-size: 38px;
   }
 }
+
+/* Driver portal theme override */
+.driver-theme {
+  --primary: #6c5ce7;
+  --primary-glow: #a29bfe;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.driver-theme body,
+body:has(.driver-theme) {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(108, 92, 231, 0.3), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(255, 107, 53, 0.2), transparent 45%),
+    var(--bg-dark);
+}
+
+.driver-theme .navbar .brand {
+  background: linear-gradient(135deg, var(--primary), var(--primary-glow));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.driver-theme .navbar a:hover,
+.driver-theme .navbar a.active {
+  background: rgba(108, 92, 231, 0.18);
+  color: var(--primary-glow);
+}
+
+.driver-theme button:not(.secondary):not(.danger) {
+  background: linear-gradient(135deg, var(--primary), var(--primary-glow));
+  box-shadow: 0 8px 24px rgba(108, 92, 231, 0.35);
+}
+
+.driver-theme button:not(.secondary):not(.danger):hover {
+  box-shadow: 0 12px 28px rgba(108, 92, 231, 0.45);
+}
+
+/* Page fade-in */
+.page, .landing {
+  animation: fadeInUp 0.35s ease both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

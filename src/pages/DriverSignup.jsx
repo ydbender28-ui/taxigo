@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { db, auth } from "../firebase/config";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { fileToCompressedDataUrl } from "../utils/image";
 
 export default function DriverSignup() {
@@ -9,6 +9,27 @@ export default function DriverSignup() {
   const [preview, setPreview] = useState(null);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!auth.currentUser) {
+        setChecking(false);
+        return;
+      }
+      const snap = await getDoc(doc(db, "drivers", auth.currentUser.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        setProfile(data);
+        setName(data.name);
+        setPreview(data.photoURL);
+      }
+      setChecking(false);
+    };
+    load();
+  }, []);
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
@@ -22,7 +43,7 @@ export default function DriverSignup() {
       setStatus({ type: "error", text: "Please log in first." });
       return;
     }
-    if (!name || !photo) {
+    if (!name || (!photo && !profile)) {
       setStatus({ type: "error", text: "Name and photo are required." });
       return;
     }
@@ -32,18 +53,25 @@ export default function DriverSignup() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          setStatus({ type: "info", text: "Processing photo..." });
-          const photoURL = await fileToCompressedDataUrl(photo);
+          let photoURL = profile?.photoURL;
+          if (photo) {
+            setStatus({ type: "info", text: "Processing photo..." });
+            photoURL = await fileToCompressedDataUrl(photo);
+          }
 
           setStatus({ type: "info", text: "Saving profile..." });
-          await setDoc(doc(db, "drivers", auth.currentUser.uid), {
+          const data = {
             name,
             photoURL,
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
             updatedAt: Date.now(),
-          });
+          };
+          await setDoc(doc(db, "drivers", auth.currentUser.uid), data);
 
+          setProfile(data);
+          setEditing(false);
+          setPhoto(null);
           setStatus({ type: "success", text: "Driver profile saved! Riders can now find you." });
         } catch (err) {
           setStatus({ type: "error", text: err.message });
@@ -58,10 +86,46 @@ export default function DriverSignup() {
     );
   };
 
+  if (checking) {
+    return (
+      <div className="page page-center">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  if (profile && !editing) {
+    return (
+      <div className="page">
+        <div>
+          <h2>Your Driver Profile</h2>
+          <p>You're live — riders nearby can see and swipe on your profile</p>
+        </div>
+        <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <img
+            src={profile.photoURL}
+            alt={profile.name}
+            style={{ width: 140, height: 140, borderRadius: "50%", objectFit: "cover", border: "3px solid var(--secondary)" }}
+          />
+          <h3>{profile.name}</h3>
+          <span className="status-msg success">Online &amp; visible to riders</span>
+          <button className="violet" onClick={() => setEditing(true)} style={{ width: "100%" }}>
+            Edit Profile
+          </button>
+        </div>
+        {status && (
+          <p className={`status-msg ${status.type === "error" ? "error" : status.type === "success" ? "success" : ""}`}>
+            {status.text}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div>
-        <h2>Become a Driver</h2>
+        <h2>{profile ? "Edit Your Profile" : "Become a Driver"}</h2>
         <p>Add your name and photo so riders can find and choose you</p>
       </div>
       <form onSubmit={handleSubmit} className="card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -71,18 +135,25 @@ export default function DriverSignup() {
         </div>
         <div className="field">
           <label>Profile Photo</label>
-          <input type="file" accept="image/*" onChange={handlePhotoChange} required />
+          <input type="file" accept="image/*" onChange={handlePhotoChange} required={!profile} />
         </div>
         {preview && (
           <img
             src={preview}
             alt="preview"
-            style={{ width: 120, height: 120, borderRadius: "50%", objectFit: "cover", margin: "0 auto" }}
+            style={{ width: 120, height: 120, borderRadius: "50%", objectFit: "cover", margin: "0 auto", border: "3px solid var(--secondary)" }}
           />
         )}
-        <button type="submit" disabled={loading}>
-          {loading ? "Saving..." : "Save Driver Profile"}
-        </button>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button type="submit" className="violet" disabled={loading} style={{ flex: 1 }}>
+            {loading ? "Saving..." : "Save Driver Profile"}
+          </button>
+          {profile && (
+            <button type="button" className="secondary" onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
       {status && (
         <p className={`status-msg ${status.type === "error" ? "error" : status.type === "success" ? "success" : ""}`}>
