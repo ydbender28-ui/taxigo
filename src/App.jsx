@@ -5,6 +5,7 @@ import DriverSignup from "./pages/DriverSignup";
 import SwipeDrivers from "./pages/SwipeDrivers";
 import Favorites from "./pages/Favorites";
 import RequestRide from "./pages/RequestRide";
+import RequireAuth from "./components/RequireAuth";
 
 function RiderLayout() {
   return (
@@ -55,14 +56,14 @@ function App() {
         <Route path="/" element={<Landing />} />
 
         <Route path="/rider" element={<RiderLayout />}>
-          <Route index element={<SwipeDrivers />} />
-          <Route path="favorites" element={<Favorites />} />
-          <Route path="request" element={<RequestRide />} />
+          <Route index element={<RequireAuth redirectTo="/rider/login"><SwipeDrivers /></RequireAuth>} />
+          <Route path="favorites" element={<RequireAuth redirectTo="/rider/login"><Favorites /></RequireAuth>} />
+          <Route path="request" element={<RequireAuth redirectTo="/rider/login"><RequestRide /></RequireAuth>} />
           <Route path="login" element={<Login redirectTo="/rider" />} />
         </Route>
 
         <Route path="/driver" element={<DriverLayout />}>
-          <Route index element={<DriverSignup />} />
+          <Route index element={<RequireAuth redirectTo="/driver/login"><DriverSignup /></RequireAuth>} />
           <Route path="login" element={<Login redirectTo="/driver" />} />
         </Route>
       </Routes>
