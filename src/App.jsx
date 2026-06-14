@@ -5,6 +5,8 @@ import DriverSignup from "./pages/DriverSignup";
 import SwipeDrivers from "./pages/SwipeDrivers";
 import Favorites from "./pages/Favorites";
 import RequestRide from "./pages/RequestRide";
+import DriverRequests from "./pages/DriverRequests";
+import DriverMap from "./pages/DriverMap";
 import RequireAuth from "./components/RequireAuth";
 
 function RiderLayout() {
@@ -15,6 +17,9 @@ function RiderLayout() {
         <span className="spacer" />
         <NavLink to="/rider" end className={({ isActive }) => (isActive ? "active" : "")}>
           Swipe
+        </NavLink>
+        <NavLink to="/rider/map" className={({ isActive }) => (isActive ? "active" : "")}>
+          Map
         </NavLink>
         <NavLink to="/rider/favorites" className={({ isActive }) => (isActive ? "active" : "")}>
           Favorites
@@ -40,6 +45,9 @@ function DriverLayout() {
         <NavLink to="/driver" end className={({ isActive }) => (isActive ? "active" : "")}>
           My Profile
         </NavLink>
+        <NavLink to="/driver/requests" className={({ isActive }) => (isActive ? "active" : "")}>
+          Ride Requests
+        </NavLink>
         <NavLink to="/driver/login" className={({ isActive }) => (isActive ? "active" : "")}>
           Login
         </NavLink>
@@ -57,6 +65,7 @@ function App() {
 
         <Route path="/rider" element={<RiderLayout />}>
           <Route index element={<RequireAuth redirectTo="/rider/login"><SwipeDrivers /></RequireAuth>} />
+          <Route path="map" element={<RequireAuth redirectTo="/rider/login"><DriverMap /></RequireAuth>} />
           <Route path="favorites" element={<RequireAuth redirectTo="/rider/login"><Favorites /></RequireAuth>} />
           <Route path="request" element={<RequireAuth redirectTo="/rider/login"><RequestRide /></RequireAuth>} />
           <Route path="login" element={<Login redirectTo="/rider" />} />
@@ -64,6 +73,7 @@ function App() {
 
         <Route path="/driver" element={<DriverLayout />}>
           <Route index element={<RequireAuth redirectTo="/driver/login"><DriverSignup /></RequireAuth>} />
+          <Route path="requests" element={<RequireAuth redirectTo="/driver/login"><DriverRequests /></RequireAuth>} />
           <Route path="login" element={<Login redirectTo="/driver" />} />
         </Route>
       </Routes>
