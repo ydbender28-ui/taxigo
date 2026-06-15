@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "../firebase/config";
-import { doc, getDoc, updateDoc, arrayRemove } from "firebase/firestore";
+import { doc, getDoc, setDoc, arrayRemove } from "firebase/firestore";
+import { Link } from "react-router-dom";
 
 export default function Favorites() {
   const [favorites, setFavorites] = useState([]);
@@ -8,78 +9,58 @@ export default function Favorites() {
   const [error, setError] = useState(null);
 
   const load = async () => {
-    if (!auth.currentUser) {
-      setError("Please log in to view your favorites.");
-      setLoading(false);
-      return;
-    }
+    if (!auth.currentUser) { setLoading(false); return; }
     try {
-      const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      const ids = userSnap.exists() ? userSnap.data().favoriteDrivers || [] : [];
-
-      const drivers = [];
+      const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
+      const ids = snap.exists() ? snap.data().favoriteDrivers || [] : [];
+      const list = [];
       for (const id of ids) {
-        const dSnap = await getDoc(doc(db, "drivers", id));
-        if (dSnap.exists()) drivers.push({ id, ...dSnap.data() });
+        const d = await getDoc(doc(db, "drivers", id));
+        if (d.exists()) list.push({ id, ...d.data() });
       }
-      setFavorites(drivers);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      setFavorites(list);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const remove = async (driverId) => {
-    await updateDoc(doc(db, "users", auth.currentUser.uid), {
-      favoriteDrivers: arrayRemove(driverId),
-    });
-    setFavorites((prev) => prev.filter((d) => d.id !== driverId));
+    await setDoc(
+      doc(db, "users", auth.currentUser.uid),
+      { favoriteDrivers: arrayRemove(driverId) },
+      { merge: true }
+    );
+    setFavorites(prev => prev.filter(d => d.id !== driverId));
   };
 
-  if (loading) {
-    return (
-      <div className="page page-center">
-        <div className="spinner" />
-        <p>Loading favorites...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="page page-center">
-        <p className="status-msg error">{error}</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="page center"><div className="spinner" /></div>;
+  if (error) return <div className="page center"><p className="msg error">{error}</p></div>;
 
   return (
     <div className="page">
       <div>
-        <h2>Your Favorite Drivers</h2>
+        <h2 style={{ fontSize: 26 }}>Your Drivers</h2>
         <p>These drivers get notified when you request a ride</p>
       </div>
+
       {favorites.length === 0 ? (
-        <div className="empty-state">
-          <h2>No favorites yet</h2>
-          <p>Go swipe right on some drivers to add them here!</p>
+        <div className="empty">
+          <div className="empty-icon">💛</div>
+          <h3>No favorites yet</h3>
+          <p>Swipe right on a driver to save them here</p>
+          <Link to="/rider"><button style={{ marginTop: 16 }}>Find Drivers</button></Link>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {favorites.map((driver) => (
-            <div key={driver.id} className="driver-row">
-              <img src={driver.photoURL} alt={driver.name} />
-              <div className="info">
-                <div className="name">{driver.name}</div>
+          {favorites.map(d => (
+            <div key={d.id} className="driver-row">
+              <img src={d.photoURL} alt={d.name} />
+              <div style={{ flex: 1 }}>
+                <div className="name">{d.name}</div>
+                <div className="dist">Saved driver</div>
               </div>
-              <button className="danger" onClick={() => remove(driver.id)}>
-                Remove
-              </button>
+              <button className="danger" onClick={() => remove(d.id)}>Remove</button>
             </div>
           ))}
         </div>

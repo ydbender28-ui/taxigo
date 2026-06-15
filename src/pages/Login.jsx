@@ -1,83 +1,65 @@
 import { useState } from "react";
 import { auth } from "../firebase/config";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 
-export default function Login({ redirectTo = "/" }) {
+export default function Login({ redirectTo = "/", isDriver = false }) {
+  const [tab, setTab] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const friendlyError = (err) => {
+  const friendly = (err) => {
     switch (err.code) {
       case "auth/missing-password":
-      case "auth/missing-email":
-        return "Please enter both an email and password.";
-      case "auth/invalid-email":
-        return "That email address looks invalid.";
-      case "auth/email-already-in-use":
-        return "An account with that email already exists. Try logging in instead.";
-      case "auth/weak-password":
-        return "Password should be at least 6 characters.";
+      case "auth/missing-email": return "Please enter both email and password.";
+      case "auth/invalid-email": return "That email looks invalid.";
+      case "auth/email-already-in-use": return "Account already exists — try logging in.";
+      case "auth/weak-password": return "Password must be at least 6 characters.";
       case "auth/invalid-credential":
       case "auth/wrong-password":
-      case "auth/user-not-found":
-        return "Incorrect email or password.";
-      default:
-        return err.message;
+      case "auth/user-not-found": return "Wrong email or password.";
+      default: return err.message;
     }
   };
 
-  const handleLogin = async () => {
-    setError("");
-    if (!email || !password) {
-      setError("Please enter both an email and password.");
-      return;
-    }
+  const handle = async () => {
+    if (!email || !password) { setError("Please enter both email and password."); return; }
+    setLoading(true); setError("");
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      if (tab === "login") await signInWithEmailAndPassword(auth, email, password);
+      else await createUserWithEmailAndPassword(auth, email, password);
       navigate(redirectTo);
     } catch (err) {
-      setError(friendlyError(err));
+      setError(friendly(err));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSignup = async () => {
-    setError("");
-    if (!email || !password) {
-      setError("Please enter both an email and password.");
-      return;
-    }
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      navigate(redirectTo);
-    } catch (err) {
-      setError(friendlyError(err));
-    }
-  };
+  const accent = isDriver ? "violet" : "orange";
 
   return (
-    <div className="page page-center">
-      <h2>Welcome to TaxiGo</h2>
-      <p>Log in or create an account to get started</p>
-      <div className="card" style={{ width: "100%", display: "flex", flexDirection: "column", gap: 16 }}>
-        <div className="field">
-          <label>Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+    <div className="login-wrap">
+      <div className="logo-small">{isDriver ? "🚖" : "🚕"}</div>
+      <h2>{isDriver ? "Driver Portal" : "Rider Portal"}</h2>
+      <div className="login-box">
+        <div className="tab-row">
+          <button className={`tab-btn ${tab === "login" ? `active ${accent}` : ""}`} onClick={() => setTab("login")}>
+            Log In
+          </button>
+          <button className={`tab-btn ${tab === "signup" ? `active ${accent}` : ""}`} onClick={() => setTab("signup")}>
+            Sign Up
+          </button>
         </div>
-        <div className="field">
-          <label>Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-        </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <button onClick={handleLogin} style={{ flex: 1 }}>Log In</button>
-          <button onClick={handleSignup} className="secondary" style={{ flex: 1 }}>Sign Up</button>
-        </div>
-        {error && <p className="status-msg error">{error}</p>}
+        <div className="field"><label>Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" onKeyDown={e => e.key === "Enter" && handle()} /></div>
+        <div className="field"><label>Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handle()} /></div>
+        <button className={isDriver ? "violet" : ""} onClick={handle} disabled={loading} style={{ width: "100%", padding: "14px" }}>
+          {loading ? "Please wait..." : tab === "login" ? "Log In" : "Create Account"}
+        </button>
+        {error && <p className="msg error">{error}</p>}
       </div>
     </div>
   );

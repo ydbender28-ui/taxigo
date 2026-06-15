@@ -6,19 +6,11 @@ import { getDistanceKm } from "../utils/distance";
 export default function DriverRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [driverPos, setDriverPos] = useState(null);
 
   useEffect(() => {
-    if (!auth.currentUser) {
-      setLoading(false);
-      return;
-    }
-
-    // get driver's own saved location for distance calc
-    getDoc(doc(db, "drivers", auth.currentUser.uid)).then((snap) => {
-      if (snap.exists()) setDriverPos(snap.data());
-    });
+    if (!auth.currentUser) { setLoading(false); return; }
+    getDoc(doc(db, "drivers", auth.currentUser.uid)).then(s => { if (s.exists()) setDriverPos(s.data()); });
 
     const q = query(
       collection(db, "rideRequests"),
@@ -26,91 +18,56 @@ export default function DriverRequests() {
       where("status", "==", "pending")
     );
 
-    const unsub = onSnapshot(
-      q,
-      async (snap) => {
-        const items = await Promise.all(
-          snap.docs.map(async (d) => {
-            const data = d.data();
-            let riderName = "A rider";
-            try {
-              const riderSnap = await getDoc(doc(db, "users", data.riderId));
-              if (riderSnap.exists() && riderSnap.data().displayName) {
-                riderName = riderSnap.data().displayName;
-              }
-            } catch {
-              // ignore - default name used
-            }
-            return { id: d.id, ...data, riderName };
-          })
-        );
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        setRequests(items);
-        setLoading(false);
-      },
-      (err) => {
-        setError(err.message);
-        setLoading(false);
-      }
-    );
-
-    return unsub;
+    return onSnapshot(q, async (snap) => {
+      const items = await Promise.all(snap.docs.map(async d => {
+        const data = d.data();
+        let riderEmail = "A rider";
+        try {
+          const r = await getDoc(doc(db, "users", data.riderId));
+          if (r.exists() && r.data().email) riderEmail = r.data().email;
+        } catch { /* ignore */ }
+        return { id: d.id, ...data, riderEmail };
+      }));
+      setRequests(items.sort((a, b) => b.createdAt - a.createdAt));
+      setLoading(false);
+    });
   }, []);
 
   const respond = async (id, status) => {
     await updateDoc(doc(db, "rideRequests", id), { status });
-    setRequests((prev) => prev.filter((r) => r.id !== id));
   };
 
-  if (loading) {
-    return (
-      <div className="page page-center">
-        <div className="spinner" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="page page-center">
-        <p className="status-msg error">{error}</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="page center"><div className="spinner" /></div>;
 
   return (
     <div className="page">
       <div>
-        <h2>Ride Requests</h2>
-        <p>Riders who saved you and are requesting a ride</p>
+        <h2 style={{ fontSize: 26 }}>Ride Requests</h2>
+        <p>Live — updates automatically</p>
       </div>
+
       {requests.length === 0 ? (
-        <div className="empty-state">
-          <h2>No requests right now</h2>
-          <p>You'll see them here as soon as a rider requests you.</p>
+        <div className="empty">
+          <div className="empty-icon">📱</div>
+          <h3>No requests yet</h3>
+          <p>When a rider requests you, it'll appear here instantly.</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {requests.map((r) => {
+          {requests.map(r => {
             const dist = driverPos ? getDistanceKm(driverPos.lat, driverPos.lng, r.lat, r.lng) : null;
             return (
-              <div key={r.id} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={r.id} className="req-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
-                    <h3>{r.riderName}</h3>
-                    {dist !== null && <p>{dist.toFixed(1)} km away</p>}
+                    <h3 style={{ fontSize: 17 }}>🙋 {r.riderEmail}</h3>
+                    {dist !== null && <p style={{ marginTop: 4, fontSize: 13 }}>📍 {dist.toFixed(1)} km from you</p>}
                   </div>
-                  <span className="status-msg" style={{ padding: "6px 12px" }}>
-                    {new Date(r.createdAt).toLocaleTimeString()}
-                  </span>
+                  <span className="req-time">{new Date(r.createdAt).toLocaleTimeString()}</span>
                 </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <button onClick={() => respond(r.id, "accepted")} style={{ flex: 1 }}>
-                    Accept
-                  </button>
-                  <button className="danger" onClick={() => respond(r.id, "declined")} style={{ flex: 1 }}>
-                    Decline
-                  </button>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => respond(r.id, "accepted")} style={{ flex: 1 }}>✓ Accept</button>
+                  <button className="danger" onClick={() => respond(r.id, "declined")} style={{ flex: 1 }}>✕ Decline</button>
                 </div>
               </div>
             );
