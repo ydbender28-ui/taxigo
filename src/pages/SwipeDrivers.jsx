@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import TinderCard from "react-tinder-card";
 import { db, auth } from "../firebase/config";
-import { collection, getDocs, doc, updateDoc, setDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { getDistanceKm } from "../utils/distance";
 
 export default function SwipeDrivers() {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -51,14 +52,13 @@ export default function SwipeDrivers() {
     const userRef = doc(db, "users", auth.currentUser.uid);
     try {
       if (direction === "right") {
-        await updateDoc(userRef, { favoriteDrivers: arrayUnion(driverId) }).catch(async () => {
-          await setDoc(userRef, { favoriteDrivers: [driverId] }, { merge: true });
-        });
+        await setDoc(userRef, { favoriteDrivers: arrayUnion(driverId) }, { merge: true });
       } else {
-        await updateDoc(userRef, { favoriteDrivers: arrayRemove(driverId) }).catch(() => {});
+        await setDoc(userRef, { favoriteDrivers: arrayRemove(driverId) }, { merge: true });
       }
-    } catch {
-      // ignore — non-critical
+      setSaveError(null);
+    } catch (err) {
+      setSaveError(err.message);
     }
   };
 
@@ -103,6 +103,7 @@ export default function SwipeDrivers() {
         <h2>Find Your Driver</h2>
         <p>Swipe right to save as favorite, left to skip</p>
       </div>
+      {saveError && <p className="status-msg error">{saveError}</p>}
       <div className="swipe-stack">
         {drivers.map((driver) => (
           <TinderCard
